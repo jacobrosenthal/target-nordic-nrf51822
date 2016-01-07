@@ -87,6 +87,7 @@ set(NRF51822_SOFTDEVICE_HEX_FILE "${NRF51822_SOFTDEVICE_FILE_PATH}")
 set(NRF51822_BOOTLOADER_HEX_FILE "${CMAKE_CURRENT_LIST_DIR}/../bootloader/s130_nrf51_1.0.0_bootloader.hex")
 set(NRF51822_MERGE_HEX_SCRIPT    "${CMAKE_CURRENT_LIST_DIR}/../scripts/merge_hex.py")
 set(NRF51822_MEMORY_INFO_SCRIPT  "${CMAKE_CURRENT_LIST_DIR}/../scripts/memory_info.py")
+set(NRF51822_GEN_DAT_SCRIPT      "${CMAKE_CURRENT_LIST_DIR}/../scripts/generate_dat.py")
 
 # define a function for yotta to apply target-specific rules to build products,
 # in our case we need to convert the built elf file to .hex, and add the
@@ -96,6 +97,9 @@ function(yotta_apply_target_rules target_type target_name)
         if(YOTTA_CFG_IMAGE_FOTA)
             add_custom_command(TARGET ${target_name}
                 POST_BUILD
+                # generate dfu .dat from bin
+                COMMAND python ${NRF51822_GEN_DAT_SCRIPT} ${target_name}.bin
+                COMMENT "generating .dat and .zip"
                 # objcopy to hex
                 COMMAND arm-none-eabi-objcopy -O ihex ${target_name} ${target_name}.hex
                 # and append the softdevice hex file
