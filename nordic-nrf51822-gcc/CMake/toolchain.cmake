@@ -98,7 +98,7 @@ function(yotta_apply_target_rules target_type target_name)
             add_custom_command(TARGET ${target_name}
                 POST_BUILD
                 # generate dfu .dat from bin
-                COMMAND python ${NRF51822_GEN_DAT_SCRIPT} ${target_name}.bin
+                COMMAND python ${NRF51822_GEN_DAT_SCRIPT} ${target_name}
                 COMMENT "generating .dat and .zip"
                 # objcopy to hex
                 COMMAND arm-none-eabi-objcopy -O ihex ${target_name} ${target_name}.hex

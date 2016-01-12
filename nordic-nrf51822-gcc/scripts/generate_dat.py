@@ -65,9 +65,11 @@ def main():
   args = parser.parse_args()
 
   name = args.file.split('.')[0]
+
   dat_out_name =  name + '.dat'
   manifest_name = 'manifest.json'
   archive_name = name + '.zip'
+  bin_out_name = name + '.bin'
 
   try:
     bin = open(args.file, 'rb')
@@ -110,15 +112,14 @@ def main():
   device_type = 65535
   softdevice_req = 65534
 
-  manifest_text = _create_manifest(args.file, dat_out_name, application_version, device_revision, device_type, crc, softdevice_req)
+  manifest_text = _create_manifest(bin_out_name, dat_out_name, application_version, device_revision, device_type, crc, softdevice_req)
   manifest.write(manifest_text);
   manifest.close()
 
   archive.write(dat_out_name, os.path.basename(dat_out_name), zipfile.ZIP_DEFLATED)
   archive.write(manifest_name, os.path.basename(manifest_name), zipfile.ZIP_DEFLATED)
-  archive.write(args.file, os.path.basename(args.file), zipfile.ZIP_DEFLATED)
+  archive.write(args.file, os.path.basename(bin_out_name), zipfile.ZIP_DEFLATED)
   archive.close()
 
 if __name__ == "__main__":
   main()
-  
