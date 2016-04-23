@@ -64,12 +64,18 @@ def main():
   parser.add_argument ('file', metavar = 'file', type = str, help = 'The binary to crc')
   args = parser.parse_args()
 
-  name = args.file.split('.')[0]
+  basename = os.path.basename(args.file)
+  name = basename.split('.')[0]
 
   dat_out_name =  name + '.dat'
   manifest_name = 'manifest.json'
-  archive_name = name + '.zip'
-  bin_out_name = name + '.bin'
+
+  #if were not in the same directory
+  if ('/' in args.file) or ('\\' in args.file):
+    path = os.path.dirname(args.file)
+    archive_name = path + '/' + name + '.zip'
+  else:
+    archive_name = name + '.zip'
 
   try:
     bin = open(args.file, 'rb')
@@ -78,19 +84,7 @@ def main():
     sys.exit('Could not open %s' % args.file)
 
   try:
-    dat = open(dat_out_name, 'w')
-
-  except:
-    sys.exit('Could not open/create %s' % dat_out_name)
-
-  try:
-    manifest = open(manifest_name, 'w')
-
-  except:
-    sys.exit('Could not open/create %s' % manifest_name)
-
-  try:
-    archive = zipfile.ZipFile(archive_name, 'w')
+    archive = zipfile.ZipFile( archive_name, 'w')
 
   except:
     sys.exit('Could not open/create %s' % archive_name)
@@ -100,25 +94,18 @@ def main():
 
   ba = bytearray(bin.read())
   bin.close();
-
   crc = calc_crc16(ba)
   init_packet.extend(convert_uint16_to_array(crc))
-
-  dat.write(bytearray(init_packet))
-  dat.close()
 
   application_version = 4294967295
   device_revision = 65535
   device_type = 65535
   softdevice_req = 65534
+  manifest_text = _create_manifest(basename, dat_out_name, application_version, device_revision, device_type, crc, softdevice_req)
 
-  manifest_text = _create_manifest(bin_out_name, dat_out_name, application_version, device_revision, device_type, crc, softdevice_req)
-  manifest.write(manifest_text);
-  manifest.close()
-
-  archive.write(dat_out_name, os.path.basename(dat_out_name), zipfile.ZIP_DEFLATED)
-  archive.write(manifest_name, os.path.basename(manifest_name), zipfile.ZIP_DEFLATED)
-  archive.write(args.file, os.path.basename(bin_out_name), zipfile.ZIP_DEFLATED)
+  archive.writestr(dat_out_name, buffer(bytearray(init_packet)), zipfile.ZIP_DEFLATED)
+  archive.writestr(manifest_name, manifest_text, zipfile.ZIP_DEFLATED)
+  archive.write(args.file, basename, zipfile.ZIP_DEFLATED)
   archive.close()
 
 if __name__ == "__main__":
