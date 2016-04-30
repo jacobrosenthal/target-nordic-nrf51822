@@ -39,6 +39,16 @@ else()
     endif()
 endif()
 
+# Define all device types if not defined
+if(NOT YOTTA_CFG_UICR_DEVICE_TYPE)
+    set(YOTTA_CFG_UICR_DEVICE_TYPE 65535)
+endif()
+
+# Define all device versions if not defined
+if(NOT YOTTA_CFG_UICR_DEVICE_VERSION)
+    set(YOTTA_CFG_UICR_DEVICE_VERSION 65535)
+endif()
+
 # Set S130 as the default SoftDevice if not defined through yotta config
 if(NOT YOTTA_CFG_NORDIC_SOFTDEVICE)
     set(YOTTA_CFG_NORDIC_SOFTDEVICE "S130")
@@ -62,11 +72,13 @@ set(MBED_LEGACY_TARGET_DEFINITIONS "NORDIC" "NRF51822_MKIT" "MCU_NRF51822" "MCU_
 add_definitions("-DNRF51 -DTARGET_NORDIC -DTARGET_M0 -D__MBED__=1 -DMCU_NORDIC_${YOTTA_CFG_NRF51822_RAM_SIZE} -DTARGET_NRF51822 -DTARGET_MCU_NORDIC_${YOTTA_CFG_NRF51822_RAM_SIZE}")
 
 if(YOTTA_CFG_NORDIC_SOFTDEVICE STREQUAL "S110")
+    set(SOFTDEVICE_VERSION 100)
     add_definitions("-DTARGET_MCU_NRF51_${YOTTA_CFG_NRF51822_RAM_SIZE} -DTARGET_MCU_NRF51_${YOTTA_CFG_NRF51822_RAM_SIZE}_S110")
     set(MBED_LEGACY_TARGET_DEFINITIONS   ${MBED_LEGACY_TARGET_DEFINITIONS} "MCU_NRF51" "MCU_NRF51_${YOTTA_CFG_NRF51822_RAM_SIZE}" "MCU_NORDIC_${YOTTA_CFG_NRF51822_RAM_SIZE}_S110")
     set(NRF51822_LINKER_FLAGS_FILE_PATH  "${CMAKE_CURRENT_LIST_DIR}/../ld/NRF51822_${YOTTA_CFG_NRF51822_RAM_SIZE}_S110.ld")
     set(NRF51822_SOFTDEVICE_FILE_PATH    "${CMAKE_CURRENT_LIST_DIR}/../softdevice/s110_nrf51822_8.0.0_softdevice.hex")
 elseif(YOTTA_CFG_NORDIC_SOFTDEVICE STREQUAL "S130")
+    set(SOFTDEVICE_VERSION 103)
     set(NRF51822_LINKER_FLAGS_FILE_PATH  "${CMAKE_CURRENT_LIST_DIR}/../ld/NRF51822_${YOTTA_CFG_NRF51822_RAM_SIZE}_S130.ld")
     set(NRF51822_SOFTDEVICE_FILE_PATH    "${CMAKE_CURRENT_LIST_DIR}/../softdevice/s130_nrf51_1.0.0_softdevice.hex")
 else()
@@ -79,7 +91,7 @@ set(_CPU_COMPILATION_OPTIONS "-mcpu=cortex-m0 -mthumb -D__thumb2__")
 set(CMAKE_C_FLAGS_INIT             "${CMAKE_C_FLAGS_INIT} ${_CPU_COMPILATION_OPTIONS}")
 set(CMAKE_ASM_FLAGS_INIT           "${CMAKE_ASM_FLAGS_INIT} ${_CPU_COMPILATION_OPTIONS}")
 set(CMAKE_CXX_FLAGS_INIT           "${CMAKE_CXX_FLAGS_INIT} ${_CPU_COMPILATION_OPTIONS}")
-set(CMAKE_MODULE_LINKER_FLAGS_INIT "${CMAKE_MODULE_LINKER_FLAGS_INIT} -mcpu=cortex-m0 -mthumb")
+set(CMAKE_MODULE_LINKER_FLAGS_INIT "${CMAKE_MODULE_LINKER_FLAGS_INIT} -mcpu=cortex-m0 -mthumb -Wl,-Map=main.map")
 set(CMAKE_EXE_LINKER_FLAGS_INIT    "${CMAKE_EXE_LINKER_FLAGS_INIT} -mcpu=cortex-m0 -mthumb -T\"${NRF51822_LINKER_FLAGS_FILE_PATH}\"")
 
 # used by the apply_target_rules function below:
@@ -97,11 +109,13 @@ function(yotta_apply_target_rules target_type target_name)
         if(YOTTA_CFG_IMAGE_FOTA)
             add_custom_command(TARGET ${target_name}
                 POST_BUILD
-                # generate dfu .dat from bin
-                COMMAND python ${NRF51822_GEN_DAT_SCRIPT} ${target_name}
-                COMMENT "generating .dat and .zip"
                 # objcopy to hex
                 COMMAND arm-none-eabi-objcopy -O ihex ${target_name} ${target_name}.hex
+                # objcopy to bin
+                COMMAND arm-none-eabi-objcopy -O binary ${target_name} ${target_name}.bin
+                # generate dfu .dat from bin
+                COMMAND python ${NRF51822_GEN_DAT_SCRIPT} ${target_name}.bin --sd-req ${SOFTDEVICE_VERSION} --dev-type ${YOTTA_CFG_UICR_DEVICE_TYPE} --dev-revision ${YOTTA_CFG_UICR_DEVICE_VERSION}
+                COMMENT "generating .dat and .zip"
                 # and append the softdevice hex file
                 COMMAND python ${NRF51822_MERGE_HEX_SCRIPT} ${NRF51822_SOFTDEVICE_HEX_FILE} ${target_name}.hex ${target_name}-combined.hex
                 # append the softdevice and bootloader hex file
